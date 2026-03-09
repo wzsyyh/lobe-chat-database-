@@ -4,7 +4,6 @@ import { NextResponse } from 'next/server';
 import { UAParser } from 'ua-parser-js';
 import urlJoin from 'url-join';
 
-import { auth } from '@/auth';
 import { LOBE_LOCALE_COOKIE } from '@/const/locale';
 import { appEnv } from '@/envs/app';
 import { authEnv } from '@/envs/auth';
@@ -208,10 +207,21 @@ export function defineConfig() {
     // Skip session lookup for public routes to reduce latency
     if (!isProtected) return response;
 
-    // Get full session with user data (Next.js 15.2.0+ feature)
-    const session = await auth.api.getSession({
-      headers: req.headers,
-    });
+    // Lazily import auth to avoid crashing the middleware module when auth is
+    // misconfigured (e.g. missing AUTH_SECRET / DATABASE_URL). If auth fails to
+    // initialize we treat the request as unauthenticated and fall through to the
+    // redirect-to-signin logic below.
+    let session: { user?: unknown } | null = null;
+    try {
+      const { auth } = await import('@/auth');
+      // Get full session with user data (Next.js 15.2.0+ feature)
+      session = await auth.api.getSession({
+        headers: req.headers,
+      });
+    } catch (error) {
+      logBetterAuth('Failed to get session (auth misconfigured?): %O', error);
+      // Fall through: treat as not logged in
+    }
 
     const isLoggedIn = !!session?.user;
 
