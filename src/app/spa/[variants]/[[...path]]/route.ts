@@ -19,6 +19,10 @@ import {
 } from '@/types/spaServerConfig';
 import { RouteVariants } from '@/utils/server/routeVariants';
 
+// Always render dynamically so that server config is fresh on every request
+// and is not baked into a static pre-rendered response at build time.
+export const dynamic = 'force-dynamic';
+
 export function generateStaticParams() {
   const mobileOptions = isDesktop ? [false] : [true, false];
   const staticLocales: Locales[] = ['en-US', 'zh-CN'];
